@@ -1,23 +1,27 @@
-# Start with a base image that has Java installed.
-# We use a slimmed-down version for a smaller image size.
-FROM eclipse-temurin:17-jdk-focal
+# Use a Maven base image that includes Java 17
+FROM maven:3.9.6-eclipse-temurin-17 AS build
 
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy the Maven build file (pom.xml) and download all dependencies.
-# This step is cached by Docker, speeding up subsequent builds.
+# Copy the Maven project files
 COPY pom.xml .
-RUN mvn dependency:go-offline
+COPY src ./src
 
-# Copy the entire project source code into the container.
-COPY . .
+# Build the application and run tests
+RUN mvn clean package
 
-# Package the application into a single executable JAR file.
-RUN mvn package -DskipTests
+# Use a lean base image for the final application to keep it small
+FROM eclipse-temurin:17-jre-focal
 
-# Expose the port your Spring Boot app runs on.
+# Set the working directory
+WORKDIR /app
+
+# Copy the built JAR file from the 'build' stage
+COPY --from=build /app/target/springboot-thymeleaf-crud-web-app-0.0.1-SNAPSHOT.jar .
+
+# Expose the port your Spring Boot app runs on
 EXPOSE 8080
 
-# The command to run the application when the container starts.
-ENTRYPOINT ["java", "-jar", "target/springboot-thymeleaf-crud-web-app-0.0.1-SNAPSHOT.jar"]
+# The command to run the application when the container starts
+ENTRYPOINT ["java", "-jar", "springboot-thymeleaf-crud-web-app-0.0.1-SNAPSHOT.jar"]
